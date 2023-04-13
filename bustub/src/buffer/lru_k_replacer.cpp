@@ -10,8 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "buffer/lru_k_replacer.h"
 #include <memory>
+
+#include "buffer/lru_k_replacer.h"
 #include "common/exception.h"
 
 namespace bustub {
@@ -22,11 +23,11 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   latch_.lock();
 
   if (!node_sorted_inf_.empty()) {
-    auto it = node_sorted_inf_.end();
+    auto it = node_sorted_inf_.begin();
     *frame_id = (**it).FrameID();
     node_sorted_inf_.erase(it);
   } else if (!node_sorted_.empty()) {
-    auto it = node_sorted_.end();
+    auto it = node_sorted_.begin();
     *frame_id = (**it).FrameID();
     node_sorted_.erase(it);
   } else {
@@ -58,9 +59,17 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
     return;
   }
 
-  if (it->second->HistroySize() == k_ - 1 && it->second->IsEvictable()) {
+  if (!it->second->IsEvictable()) {
+    it->second->Access();
+    latch_.unlock();
+    return;
+  }
+
+  if (it->second->HistroySize() == k_ - 1) {
     auto begin = node_sorted_inf_.find(it->second);
-    for (; **begin != *(it->second); begin++) {}
+    while (**begin != *(it->second)) {
+      begin++;
+    }
     node_sorted_inf_.erase(begin);
     it->second->Access();
     node_sorted_.insert(it->second);
@@ -68,8 +77,30 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
     return;
   }
 
+  auto is_inf = it->second->HistroySize() < k_ - 1;
+
+  if (is_inf) {
+    auto begin = node_sorted_inf_.find(it->second);
+    while (**begin != *(it->second)) {
+      begin++;
+    }
+    node_sorted_inf_.erase(begin);
+  } else {
+    auto begin = node_sorted_.find(it->second);
+    while (**begin != *(it->second)) {
+      begin++;
+    }
+    node_sorted_.erase(begin);
+  }
+
   it->second->Access();
-  
+
+  if (is_inf) {
+    node_sorted_inf_.insert(it->second);
+  } else {
+    node_sorted_.insert(it->second);
+  }
+
   latch_.unlock();
 }
 
@@ -83,42 +114,62 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   }
 
   auto &is_evictable = it->second->IsEvictable();
-  if (is_evictable) {
+  if (is_evictable == set_evictable) {
     latch_.unlock();
     return;
   }
 
-  is_evictable = true;
-  if (it->second->HistroySize() == k_) {
-    node_sorted_.insert(it->second);
+  is_evictable = set_evictable;
+  if (set_evictable) {
+    if (it->second->HistroySize() == k_) {
+      node_sorted_.insert(it->second);
+    } else {
+      node_sorted_inf_.insert(it->second);
+    }
   } else {
-    node_sorted_inf_.insert(it->second); 
+    if (it->second->HistroySize() == k_) {
+      auto begin = node_sorted_.find(it->second);
+      while (**begin != *(it->second)) {
+        begin++;
+      }
+      node_sorted_.erase(begin);
+    } else {
+      auto begin = node_sorted_inf_.find(it->second);
+      while (**begin != *(it->second)) {
+        begin++;
+      }
+      node_sorted_inf_.erase(begin);
+    }
   }
 
   latch_.unlock();
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
-    latch_.lock();
+  latch_.lock();
 
-    auto it = node_store_.find(frame_id);
-    if (it == node_store_.end() || !it->second->IsEvictable()) {
-        latch_.unlock();
-        throw Exception("Invalid frame_id");
-    }
-    
-    if (it->second->HistroySize() == k_) {
-        auto begin = node_sorted_.find(it->second);
-        for (; **begin != *(it->second); begin++) {}
-        node_sorted_.erase(begin);
-    } else {
-        auto begin = node_sorted_inf_.find(it->second);
-        for (; *begin != it->second; begin++) {}
-        node_sorted_inf_.erase(begin);
-    }
-    node_store_.erase(it);
-
+  auto it = node_store_.find(frame_id);
+  if (it == node_store_.end() || !it->second->IsEvictable()) {
     latch_.unlock();
+    throw Exception("Invalid frame_id");
+  }
+
+  if (it->second->HistroySize() == k_) {
+    auto begin = node_sorted_.find(it->second);
+    while (**begin != *(it->second)) {
+      begin++;
+    }
+    node_sorted_.erase(begin);
+  } else {
+    auto begin = node_sorted_inf_.find(it->second);
+    while (**begin != *(it->second)) {
+      begin++;
+    }
+    node_sorted_inf_.erase(begin);
+  }
+  node_store_.erase(it);
+
+  latch_.unlock();
 }
 
 auto LRUKReplacer::Size() -> size_t {
