@@ -41,13 +41,15 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   auto is_evict = false;
   if (!free_list_.empty()) {
     *page_id = AllocatePage();
-    fid = free_list_.front();
-    free_list_.pop_front();
+    fid = free_list_.back();
+    free_list_.pop_back();
     page_table_[*page_id] = fid;
     latch_.unlock();
   } else if (replacer_->Evict(&fid)) {
     *page_id = AllocatePage();
     is_evict = true;
+    auto old_page_id = pages_[fid].GetPageId();
+    page_table_.erase(old_page_id);
     page_table_[*page_id] = fid;
     latch_.unlock();
   } else {
@@ -59,12 +61,12 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
 
   page->WLatch();
   if (is_evict && page->IsDirty()) {
-    disk_manager_->WritePage(*page_id, page->data_);
+    disk_manager_->WritePage(page->page_id_, page->data_);
   }
   page->ResetMemory();
   page->pin_count_ = 1;
   page->page_id_ = *page_id;
-  page->is_dirty_ = false;
+  page->is_dirty_ = true;
   page->WUnlatch();
 
   replacer_->RecordAccess(fid);
@@ -84,6 +86,8 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
       fid = free_list_.front();
       free_list_.pop_front();
     } else if (replacer_->Evict(&fid)) {
+      auto old_page_id = pages_[fid].GetPageId();
+      page_table_.erase(old_page_id);
       is_evict = true;
     } else {
       latch_.unlock();
@@ -100,11 +104,11 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 
   page->WLatch();
   if (is_evict && page->IsDirty()) {
-    disk_manager_->WritePage(page_id, page->data_);
+    disk_manager_->WritePage(page->page_id_, page->data_);
   }
   page->page_id_ = page_id;
   page->pin_count_ = 1;
-  page->is_dirty_ = false;
+  page->is_dirty_ = true;
   disk_manager_->ReadPage(page_id, page->GetData());
   page->WUnlatch();
 
