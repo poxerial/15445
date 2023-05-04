@@ -66,7 +66,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   page->ResetMemory();
   page->pin_count_ = 1;
   page->page_id_ = *page_id;
-  page->is_dirty_ = true;
+  page->is_dirty_ = false;
   page->WUnlatch();
 
   replacer_->RecordAccess(fid);
@@ -108,7 +108,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   }
   page->page_id_ = page_id;
   page->pin_count_ = 1;
-  page->is_dirty_ = true;
+  page->is_dirty_ = false;
   disk_manager_->ReadPage(page_id, page->GetData());
   page->WUnlatch();
 
@@ -134,8 +134,10 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
   if (new_pin_count <= -1) {
     page.WUnlatch();
     return false;
-  } 
-  page.is_dirty_ |= is_dirty;
+  }
+  if (is_dirty) {
+    page.is_dirty_ = true;
+  }
   page.WUnlatch();
   
   if (new_pin_count == 0) {
@@ -223,12 +225,24 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, FetchPage(page_id)}; }
 
-auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
+  if (auto page = FetchPage(page_id)) {
+    page->RLatch();
+    return {this, page};
+  }
+  return {this, nullptr};
+}
 
-auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
+  if (auto page = FetchPage(page_id)) {
+    page->WLatch();
+    return {this, page};
+  }
+  return {this, nullptr};
+}
 
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, NewPage(page_id)}; }
 
 }  // namespace bustub
