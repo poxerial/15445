@@ -3,7 +3,11 @@
  */
 #include <cassert>
 
+#include "common/config.h"
 #include "storage/index/index_iterator.h"
+#include "storage/page/b_plus_tree_leaf_page.h"
+#include "storage/page/b_plus_tree_page.h"
+#include "storage/page/page_guard.h"
 
 namespace bustub {
 
@@ -18,13 +22,34 @@ INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::IsEnd() -> bool { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::IsEnd() -> bool {
+  auto page = guard_.As<B_PLUS_TREE_LEAF_PAGE_TYPE>();
+  return page->GetNextPageId() == INVALID_PAGE_ID && index_ == page->GetSize();
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::operator*() -> const MappingType & {
+  auto array = reinterpret_cast<const MappingType *>(guard_.GetData() + LEAF_PAGE_HEADER_SIZE);
+  return array[index_];
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
+    index_++;
+    auto page = guard_.As<B_PLUS_TREE_LEAF_PAGE_TYPE>();
+    if (index_ < page->GetSize()) {
+        return *this;
+    }
+    auto next_page_id = page->GetNextPageId();
+    if (next_page_id != INVALID_PAGE_ID) {
+        this->guard_ = std::move(bpm_->FetchPageRead(next_page_id));
+        this->index_ = 0;
+    } else {
+        this->guard_  = std::move(ReadPageGuard());
+        this->index_ = 0;
+    }
+    return *this;
+}
 
 template class IndexIterator<GenericKey<4>, RID, GenericComparator<4>>;
 

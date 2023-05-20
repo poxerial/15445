@@ -50,6 +50,8 @@ class BasicPageGuard {
    */
   auto operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard &;
 
+  auto IsEmpty() noexcept -> bool { return page_ == nullptr; }
+
   /** TODO(P1): Add implementation
    *
    * @brief Destructor for BasicPageGuard
@@ -93,6 +95,7 @@ class ReadPageGuard {
   ReadPageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {}
   ReadPageGuard(const ReadPageGuard &) = delete;
   auto operator=(const ReadPageGuard &) -> ReadPageGuard & = delete;
+  auto operator==(const ReadPageGuard &r) const -> bool { return guard_.page_ == r.guard_.page_; }
 
   /** TODO(P1): Add implementation
    *
@@ -145,6 +148,8 @@ class ReadPageGuard {
  private:
   // You may choose to get rid of this and add your own private variables.
   BasicPageGuard guard_;
+
+  friend class WritePageGuard;
 };
 
 class WritePageGuard {

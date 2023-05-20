@@ -117,11 +117,22 @@ class BPlusTree {
   void RemoveFromFile(const std::string &file_name, Transaction *txn = nullptr);
 
  private:
+  enum CompareResult : int { Less = -1, Equal = 0, Greater = 1 };
+
+  void CreateNewRootPage(KeyType key_to_be_insert, page_id_t page_id_to_be_insert, page_id_t curr_page_id);
+  void InsertToArray(int index, int array_size, MappingType *array, MappingType &&val);
+  void InsertToArray(int index, int array_size, std::pair<KeyType, page_id_t> *array,
+                     std::pair<KeyType, page_id_t> &&val);
+  auto BinarySearch(const BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *p, KeyType key,
+                    const KeyComparator &comparator) -> int;
+  auto BinarySearch(const B_PLUS_TREE_LEAF_PAGE_TYPE *p, KeyType key, const KeyComparator &comparator) -> int;
+  void RemoveFromArray(int index, int array_size, std::pair<KeyType, page_id_t> *array);
+  void RemoveFromArray(int index, int array_size, MappingType *array);
+
   /* Debug Routines for FREE!! */
   void ToGraph(page_id_t page_id, const BPlusTreePage *page, std::ofstream &out);
 
   void PrintTree(page_id_t page_id, const BPlusTreePage *page);
-
   /**
    * @brief Convert A B+ tree into a Printable B+ tree
    *
