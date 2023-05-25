@@ -24,6 +24,8 @@
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/aggregation_plan.h"
 #include "storage/table/tuple.h"
+#include "type/integer_type.h"
+#include "type/type_id.h"
 #include "type/value_factory.h"
 
 namespace bustub {
@@ -72,12 +74,38 @@ class SimpleAggregationHashTable {
    */
   void CombineAggregateValues(AggregateValue *result, const AggregateValue &input) {
     for (uint32_t i = 0; i < agg_exprs_.size(); i++) {
+      if (agg_types_[i] == AggregationType::CountStarAggregate) {
+        result->aggregates_[i] = result->aggregates_[i].Add(Value(INTEGER, 1));
+        continue;
+      }
+
+      if (result->aggregates_[i].IsNull()) {
+        if (agg_types_[i] == AggregationType::CountAggregate) {
+          result->aggregates_[i] = Value(INTEGER, 1);
+          continue;
+        }
+        result->aggregates_[i] = input.aggregates_[i];
+        continue;
+      }
+
+      if (input.aggregates_[i].IsNull()) {
+        continue;
+      }
+
       switch (agg_types_[i]) {
-        case AggregationType::CountStarAggregate:
-        case AggregationType::CountAggregate:
         case AggregationType::SumAggregate:
+          result->aggregates_[i] = result->aggregates_[i].Add(input.aggregates_[i]);
+          break;
         case AggregationType::MinAggregate:
+          result->aggregates_[i] = result->aggregates_[i].Min(input.aggregates_[i]);
+          break;
         case AggregationType::MaxAggregate:
+          result->aggregates_[i] = result->aggregates_[i].Max(input.aggregates_[i]);
+          break;
+        case AggregationType::CountAggregate:
+          result->aggregates_[i] = result->aggregates_[i].Add(Value(INTEGER, 1));
+          break;
+        case AggregationType::CountStarAggregate:
           break;
       }
     }
@@ -201,8 +229,8 @@ class AggregationExecutor : public AbstractExecutor {
   /** The child executor that produces tuples over which the aggregation is computed */
   std::unique_ptr<AbstractExecutor> child_;
   /** Simple aggregation hash table */
-  // TODO(Student): Uncomment SimpleAggregationHashTable aht_;
+  SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator */
-  // TODO(Student): Uncomment SimpleAggregationHashTable::Iterator aht_iterator_;
+  SimpleAggregationHashTable::Iterator aht_iterator_;
 };
 }  // namespace bustub

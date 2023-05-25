@@ -22,9 +22,23 @@ INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
+INDEXITERATOR_TYPE::IndexIterator(IndexIterator&& that) noexcept {
+  guard_ = std::move(that.guard_);
+  bpm_ = that.bpm_;
+  index_ = that.index_;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto INDEXITERATOR_TYPE::operator=(IndexIterator&& that) noexcept -> IndexIterator& {
+  guard_ = std::move(that.guard_);
+  bpm_ = that.bpm_;
+  index_ = that.index_;
+  return *this;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool {
-  auto page = guard_.As<B_PLUS_TREE_LEAF_PAGE_TYPE>();
-  return page->GetNextPageId() == INVALID_PAGE_ID && index_ == page->GetSize();
+  return guard_.IsEmpty(); 
 }
 
 INDEX_TEMPLATE_ARGUMENTS

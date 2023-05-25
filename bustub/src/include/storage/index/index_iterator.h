@@ -30,6 +30,10 @@ class IndexIterator {
       : guard_(std::move(guard)), bpm_(bpm), index_(index){};
   ~IndexIterator();  // NOLINT
 
+  IndexIterator(IndexIterator&&) noexcept ;
+
+  auto operator=(IndexIterator&&) noexcept -> IndexIterator&; 
+
   auto IsEnd() -> bool;
 
   auto operator*() -> const MappingType &;

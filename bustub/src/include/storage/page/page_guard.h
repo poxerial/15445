@@ -50,7 +50,7 @@ class BasicPageGuard {
    */
   auto operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard &;
 
-  auto IsEmpty() noexcept -> bool { return page_ == nullptr; }
+  auto IsEmpty() const noexcept -> bool { return page_ == nullptr; }
 
   /** TODO(P1): Add implementation
    *
@@ -96,6 +96,7 @@ class ReadPageGuard {
   ReadPageGuard(const ReadPageGuard &) = delete;
   auto operator=(const ReadPageGuard &) -> ReadPageGuard & = delete;
   auto operator==(const ReadPageGuard &r) const -> bool { return guard_.page_ == r.guard_.page_; }
+  auto IsEmpty() const noexcept -> bool { return guard_.IsEmpty(); }
 
   /** TODO(P1): Add implementation
    *
@@ -158,6 +159,7 @@ class WritePageGuard {
   WritePageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {}
   WritePageGuard(const WritePageGuard &) = delete;
   auto operator=(const WritePageGuard &) -> WritePageGuard & = delete;
+  auto IsEmpty() const noexcept -> bool { return guard_.IsEmpty(); }
 
   /** TODO(P1): Add implementation
    *
