@@ -27,6 +27,12 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
       aht_iterator_(aht_.Begin()) {}
 
 void AggregationExecutor::Init() {
+  const auto end = aht_.End();
+  if (aht_.Begin() != end) {
+    aht_iterator_ = aht_.Begin();
+    return;
+  }
+
   child_->Init();
 
   Tuple t;
