@@ -63,5 +63,9 @@ class TopNExecutor : public AbstractExecutor {
   const TopNPlanNode *plan_;
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  /** The rbtree used to sort */
+  std::set<Tuple, std::function<bool(const Tuple&, const Tuple&)>> tuples_;
+  /** The iterator */
+  decltype(tuples_.crbegin()) iter_;
 };
 }  // namespace bustub

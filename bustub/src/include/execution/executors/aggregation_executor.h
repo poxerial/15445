@@ -79,16 +79,16 @@ class SimpleAggregationHashTable {
         continue;
       }
 
+      if (input.aggregates_[i].IsNull()) {
+        continue;
+      }
+
       if (result->aggregates_[i].IsNull()) {
         if (agg_types_[i] == AggregationType::CountAggregate) {
           result->aggregates_[i] = Value(INTEGER, 1);
           continue;
         }
         result->aggregates_[i] = input.aggregates_[i];
-        continue;
-      }
-
-      if (input.aggregates_[i].IsNull()) {
         continue;
       }
 
