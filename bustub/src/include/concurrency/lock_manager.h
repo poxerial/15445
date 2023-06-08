@@ -69,6 +69,8 @@ class LockManager {
     std::condition_variable cv_;
     /** txn_id of an upgrading transaction (if any) */
     txn_id_t upgrading_ = INVALID_TXN_ID;
+    /** the lock mode that upgrading_ upgrade to */
+    LockMode upgrade_to_;
     /** coordination */
     std::mutex latch_;
   };
